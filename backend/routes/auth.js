@@ -305,4 +305,37 @@ router.post('/reset-password', validateRequest({
  */
 router.get('/me', authenticateToken, getUserInfo);
 
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout user
+ *     tags: [Authentication]
+ *     description: Clear the authentication cookie and logout the user
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully logged out
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Logged out successfully
+ */
+router.post('/logout', (req, res) => {
+  // Clear the HTTP-only cookie
+  res.clearCookie('auth_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/'
+  });
+  
+  res.status(200).json({ message: 'Logged out successfully' });
+});
+
 export default router;

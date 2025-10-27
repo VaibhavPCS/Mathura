@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import routes from './routes/index.js';
 import {
   errorHandler,
@@ -43,6 +44,9 @@ app.use('/api-v1/auth/forgot-password', authLimiter);
 // Body parser, reading data from body into req.body (with size limits)
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+// Cookie parser for HTTP-only cookies
+app.use(cookieParser());
 
 // Data sanitization against NoSQL query injection
 app.use(mongoSanitize());
