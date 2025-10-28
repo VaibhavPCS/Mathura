@@ -4,9 +4,17 @@
   "type": "module",
   "scripts": {
     "build": "react-router build",
-    "dev": "react-router dev",
-    "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc"
+    "build:dev": "react-router build --mode development",
+    "build:staging": "react-router build --mode staging",
+    "build:prod": "react-router build --mode production",
+    "dev": "react-router dev --mode development",
+    "dev:staging": "react-router dev --mode staging",
+    "dev:prod": "react-router dev --mode production",
+    "dev:https": "react-router dev --https",
+    "start": "npx serve build/client -s",
+    "start:https": "npx serve build/client -s --ssl-cert ../PMS_BACKEND/certs/server.crt --ssl-key ../PMS_BACKEND/certs/server.key",
+    "typecheck": "react-router typegen && tsc",
+    "env:check": "node -e \"console.log('Environment:', process.env.NODE_ENV); console.log('Vite Mode:', process.env.VITE_APP_ENV);\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

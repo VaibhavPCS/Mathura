@@ -229,6 +229,37 @@ router.get('/current', getCurrentWorkspace);
  */
 router.get('/all-tasks', getAllWorkspaceTasks);  // ✅ Add this route
 
+/**
+ * @swagger
+ * /workspaces/{workspaceId}:
+ *   get:
+ *     summary: Get workspace details
+ *     tags: [Workspaces]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: workspaceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the workspace.
+ *     responses:
+ *       200:
+ *         description: Workspace details.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Workspace'
+ *       401:
+ *         description: Unauthorized.
+ *       403:
+ *         description: Forbidden.
+ *       404:
+ *         description: Workspace not found.
+ */
+router.get('/:workspaceId', getWorkspaceDetails);
+
 // ✅ NEW CRUD ROUTES
 /**
  * @swagger

@@ -7,7 +7,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "generate-certs": "node scripts/generate-ssl-certs.js",
+    "dev:https": "npm run generate-certs && nodemon index.js",
+    "start:https": "npm run generate-certs && node index.js",
+    "check-ssl": "node scripts/check-ssl.js",
+    "validate-security": "node scripts/validate-security.js",
+    "health-check": "node scripts/validate-security.js https://localhost:5443/health"
   },
   "keywords": [],
   "author": "",

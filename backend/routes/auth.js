@@ -50,12 +50,35 @@ const router = express.Router();
  *     responses:
  *       201:
  *         description: User registered successfully. An OTP has been sent to the email.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User registered successfully. Please verify your email.
+ *                 userId:
+ *                   type: string
+ *                   example: 507f1f77bcf86cd799439011
  *       400:
  *         description: Invalid input.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       409:
  *         description: User already exists.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post('/register', validateRequest({
     body: registerSchema,
@@ -67,7 +90,7 @@ router.post('/register', validateRequest({
  *   post:
  *     summary: Login user
  *     tags: [Authentication]
- *     description: Authenticate user with email and password. Sends a 6-digit OTP to the email for two-factor verification.
+ *     description: Login with email and password. Sends a 6-digit OTP to the email for verification.
  *     requestBody:
  *       required: true
  *       content:
@@ -84,16 +107,39 @@ router.post('/register', validateRequest({
  *                 example: john.doe@example.com
  *               password:
  *                 type: string
- *                 example: SecurePass123!
+ *                 example: password123
  *     responses:
  *       200:
- *         description: OTP sent successfully.
+ *         description: Login successful. OTP sent to email.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: OTP sent to your email. Please verify to complete login.
+ *                 userId:
+ *                   type: string
+ *                   example: 507f1f77bcf86cd799439011
  *       400:
- *         description: Invalid credentials.
+ *         description: Bad request.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       401:
  *         description: Unauthorized.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post('/login', validateRequest({
     body: loginSchema,
@@ -128,12 +174,43 @@ router.post('/login', validateRequest({
  *     responses:
  *       200:
  *         description: Email verified successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Email verified successfully
+ *                 token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *         headers:
+ *           Set-Cookie:
+ *             description: Authentication cookie
+ *             schema:
+ *               type: string
+ *               example: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict
  *       400:
  *         description: Invalid OTP.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       404:
  *         description: User not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post("/verify-otp", validateRequest({
     body: verifyEmailSchema, // Keeps support for { token: { userId, otp } }
@@ -288,20 +365,40 @@ router.post('/reset-password', validateRequest({
  * @swagger
  * /auth/me:
  *   get:
- *     summary: Get current user info
+ *     summary: Get current user information
  *     tags: [Authentication]
- *     description: Get authenticated user's profile information including workspaces
+ *     description: Get the current authenticated user's information
  *     security:
  *       - bearerAuth: []
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: User information.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
  *       401:
  *         description: Unauthorized.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       404:
  *         description: User not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get('/me', authenticateToken, getUserInfo);
 

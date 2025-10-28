@@ -15,12 +15,46 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
+import https from 'https';
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
 dotenv.config();
 handleUncaughtException();
 
 const app = express();
 
-app.use(helmet());
+// Enhanced security headers configuration
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'", process.env.FRONTEND_URL || "https://pms.upda.co.in"],
+    },
+  },
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginEmbedderPolicy: false, // Set to true if needed for specific features
+  hsts: {
+    maxAge: 63072000, // 2 years
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+
+// Additional security headers
+app.use((req, res, next) => {
+  res.setHeader('Origin-Agent-Cluster', '?1');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 // Rate limiting - Limit requests from same IP
 const limiter = rateLimit({
@@ -54,16 +88,36 @@ app.use(mongoSanitize());
 // Data sanitization against XSS
 app.use(xss());
 
-// CORS configuration
+// Enhanced CORS configuration for HTTPS
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? [process.env.FRONTEND_URL]
-  : ['*', 'http://localhost:5173', 'http://127.0.0.1:5173'];
+  ? [
+      process.env.FRONTEND_URL,
+      'https://pms.upda.co.in',
+      'https://pms.upda.co.in:5000'
+    ]
+  : [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'https://localhost:5173',
+      'https://127.0.0.1:5173'
+    ];
 
 app.use(cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'workspace-id'],
-    credentials: true
+    allowedHeaders: ['Content-Type', 'Authorization', 'workspace-id', 'X-Requested-With'],
+    credentials: true,
+    optionsSuccessStatus: 200 // For legacy browser support
 }));
 
 // Handle preflight requests
@@ -96,17 +150,66 @@ mongoose.connection.on('disconnected', () => {
 });
 
 const PORT = process.env.PORT || 5000;
+const HTTPS_PORT = process.env.HTTPS_PORT || 5443;
 
+// SSL Certificate configuration
+const getSSLOptions = () => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      // Production SSL certificate paths
+      const sslKeyPath = process.env.SSL_KEY_PATH || '/etc/ssl/private/server.key';
+      const sslCertPath = process.env.SSL_CERT_PATH || '/etc/ssl/certs/server.crt';
+      const sslCaPath = process.env.SSL_CA_PATH; // Optional CA bundle
+      
+      const options = {
+        key: fs.readFileSync(sslKeyPath),
+        cert: fs.readFileSync(sslCertPath)
+      };
+      
+      if (sslCaPath && fs.existsSync(sslCaPath)) {
+        options.ca = fs.readFileSync(sslCaPath);
+      }
+      
+      return options;
+    } else {
+      // Development self-signed certificate
+      const certDir = path.join(process.cwd(), 'certs');
+      const keyPath = path.join(certDir, 'server.key');
+      const certPath = path.join(certDir, 'server.crt');
+      
+      if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+        return {
+          key: fs.readFileSync(keyPath),
+          cert: fs.readFileSync(certPath)
+        };
+      }
+    }
+  } catch (error) {
+    console.warn('SSL certificates not found, running HTTP only:', error.message);
+  }
+  return null;
+};
+
+// Force HTTPS redirect in production
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https') {
+      res.redirect(`https://${req.header('host')}${req.url}`);
+    } else {
+      next();
+    }
+  });
+}
 
 app.get('/health', (req, res) => {
     res.status(200).json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      protocol: req.secure ? 'https' : 'http'
     });
 });
-
 
 import { swaggerDocs } from './libs/swagger.js';
 
@@ -116,7 +219,8 @@ app.get('/', (req, res) => {
     res.status(200).json({
       message: 'Welcome to PMS API',
       version: '1.0.0',
-      documentation: '/api-docs'
+      documentation: '/api-docs',
+      secure: req.secure
     });
 });
 
@@ -126,9 +230,36 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 handleUnhandledRejection();
 
-const server = app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+// Server startup with SSL support
+const sslOptions = getSSLOptions();
+let server;
+
+if (sslOptions) {
+  // Start HTTPS server
+  server = https.createServer(sslOptions, app).listen(HTTPS_PORT, () => {
+    console.log(`🔒 HTTPS Server is running on port ${HTTPS_PORT}`);
+    console.log(`🔗 API URL: https://localhost:${HTTPS_PORT}`);
+  });
+  
+  // Optional: Start HTTP server for redirects
+  if (process.env.ENABLE_HTTP_REDIRECT !== 'false') {
+    const httpApp = express();
+    httpApp.use((req, res) => {
+      res.redirect(301, `https://${req.headers.host.replace(/:\d+$/, `:${HTTPS_PORT}`)}${req.url}`);
+    });
+    
+    http.createServer(httpApp).listen(PORT, () => {
+      console.log(`🔄 HTTP Redirect server running on port ${PORT} -> HTTPS ${HTTPS_PORT}`);
+    });
+  }
+} else {
+  // Fallback to HTTP server
+  server = app.listen(PORT, () => {
+    console.log(`⚠️  HTTP Server is running on port ${PORT}`);
+    console.log(`🔗 API URL: http://localhost:${PORT}`);
+    console.log(`⚠️  Warning: Running without SSL in ${process.env.NODE_ENV || 'development'} mode`);
+  });
+}
 
 process.on('SIGTERM', () => {
   console.log('Shutting down');

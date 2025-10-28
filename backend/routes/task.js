@@ -223,35 +223,72 @@ router.put('/:taskId', updateTask);
  *             properties:
  *               title:
  *                 type: string
+ *                 example: Implement user authentication
  *               description:
  *                 type: string
+ *                 example: Create login and registration functionality
  *               status:
  *                 type: string
+ *                 enum: ['todo', 'in-progress', 'review', 'done']
+ *                 default: todo
  *               priority:
  *                 type: string
+ *                 enum: ['low', 'medium', 'high', 'urgent']
+ *                 default: medium
  *               assigneeId:
  *                 type: string
+ *                 example: 507f1f77bcf86cd799439011
  *               projectId:
  *                 type: string
+ *                 example: 507f1f77bcf86cd799439012
  *               category:
  *                 type: string
+ *                 example: Development
  *               startDate:
  *                 type: string
  *                 format: date
+ *                 example: 2024-01-15
  *               dueDate:
  *                 type: string
  *                 format: date
+ *                 example: 2024-01-30
  *     responses:
  *       201:
  *         description: Task created successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Task created successfully
+ *                 task:
+ *                   $ref: '#/components/schemas/Task'
  *       400:
  *         description: Bad request.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       401:
  *         description: Unauthorized.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       403:
  *         description: Forbidden.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       404:
  *         description: Project or assignee not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post('/', createTask);
 
